@@ -29,7 +29,7 @@
     "express-error-handling",
     "typescript-express"
   ],
-  "author": "",
+  "author": "Nyasha Karata",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/odlemon/trapx/issues"

@@ -2,6 +2,7 @@ export interface ErrorMetadata {
   code?: string;
   details?: Record<string, unknown>;
   isOperational?: boolean;
+  cause?: Error;
   [key: string]: unknown;
 }
 
@@ -12,6 +13,11 @@ export interface ErrorResponse {
     code: string;
     details?: Record<string, unknown>;
     stack?: string;
+    cause?: {
+      name: string;
+      message: string;
+      stack?: string;
+    };
   };
 }
 

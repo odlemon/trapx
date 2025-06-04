@@ -96,4 +96,99 @@ describe('Core Errors', () => {
       expect(error.stack).toBeDefined();
     });
   });
+
+  describe('Error Chaining', () => {
+    it('should properly chain errors with cause', () => {
+      const rootError = new Error('Database connection failed');
+      const dbError = new InternalServerError('Database error', {
+        cause: rootError
+      });
+      const validationError = new ValidationError('Invalid user data', {
+        cause: dbError
+      });
+
+      expect(validationError.cause).toBe(dbError);
+      expect(dbError.cause).toBe(rootError);
+    });
+
+    it('should get root cause of error chain', () => {
+      const rootError = new Error('Original error');
+      const midError = new InternalServerError('System error', {
+        cause: rootError
+      });
+      const topError = new ValidationError('Invalid input', {
+        cause: midError
+      });
+
+      const rootCause = topError.getRootCause();
+      expect(rootCause).toBe(rootError);
+      expect(rootCause.message).toBe('Original error');
+    });
+
+    it('should get complete error chain', () => {
+      const rootError = new Error('Root error');
+      const midError = new InternalServerError('Mid error', {
+        cause: rootError
+      });
+      const topError = new ValidationError('Top error', {
+        cause: midError
+      });
+
+      const chain = topError.getErrorChain();
+      expect(chain).toHaveLength(3);
+      expect(chain[0]).toBe(topError);
+      expect(chain[1]).toBe(midError);
+      expect(chain[2]).toBe(rootError);
+    });
+
+    it('should handle circular error references', () => {
+      const error1 = new ValidationError('Error 1');
+      const error2 = new InternalServerError('Error 2', { cause: error1 });
+      // Create circular reference
+      (error1 as any).cause = error2;
+
+      const chain = error2.getErrorChain();
+      expect(chain.length).toBeLessThanOrEqual(10); // Should not exceed max depth
+    });
+  });
+
+  describe('Stack Trace Handling', () => {
+    it('should include cause in stack trace', () => {
+      const rootError = new Error('Root cause');
+      const topError = new ValidationError('Validation failed', {
+        cause: rootError
+      });
+
+      expect(topError.stack).toContain('Root cause');
+      expect(topError.stack).toContain('Caused by:');
+    });
+
+    it('should provide clean stack trace without node_modules', () => {
+      const error = new ValidationError('Test error');
+      const cleanStack = error.getCleanStack();
+
+      expect(cleanStack).not.toContain('node_modules');
+      expect(cleanStack).toContain('ValidationError');
+    });
+
+    it('should preserve original stack trace', () => {
+      const error = new ValidationError('Test error');
+      const originalStack = error.stack;
+      error.cause = new Error('Cause');
+
+      expect(error.stack).toContain(originalStack!.split('\n')[0]);
+    });
+
+    it('should handle missing stack traces gracefully', () => {
+      const rootError = new Error('Root error');
+      delete rootError.stack;
+
+      const topError = new ValidationError('Top error', {
+        cause: rootError
+      });
+
+      expect(() => topError.getCleanStack()).not.toThrow();
+      expect(topError.stack).toContain('Root error');
+    });
+  });
 }); 
