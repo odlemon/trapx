@@ -1,135 +1,245 @@
 # TrapX
 
-[![npm version](https://img.shields.io/npm/v/trapx.svg)](https://www.npmjs.com/package/trapx)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
+🎯 Type-safe error handling for TypeScript backends
 
-A plug and play middleware for standardized error handling in TypeScript based Express.js applications. TrapX simplifies error management, improves consistency across APIs, and enhances developer productivity by reducing boilerplate.
+## Features
 
-## 🌟 Features
+- 🛡️ Type-safe error handling
+- 🎨 Customizable error responses
+- 🔄 Framework agnostic core
+- 📦 Express.js integration (more coming soon!)
+- 🎭 Development/Production modes
+- 🎯 Stack trace control
+- 🎪 Custom error transformation
 
-- 🎯 **Standardized Error Handling**: Consistent error responses across your entire API
-- 🔍 **Type-Safe**: Built with TypeScript for robust type checking and better IDE support
-- 🛠️ **Customizable**: Flexible error transformation and handling options
-- 🚦 **Environment-Aware**: Automatic stack trace handling based on environment
-- 📦 **Pre-built Error Types**: Common HTTP error types included out of the box
-- 🔄 **Extensible**: Easy to create custom error types for your specific needs
-- 📝 **Well Documented**: Comprehensive documentation and examples
-
-## 📦 Installation
+## Installation
 
 ```bash
-# Using npm
 npm install trapx
-
-# Using yarn
+# or
 yarn add trapx
-
-# Using pnpm
-pnpm add trapx
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ```typescript
 import express from 'express';
-import { createErrorHandler, ValidationError } from 'trapx';
+import { createExpressErrorHandler, NotFoundError } from 'trapx';
 
 const app = express();
 
-// Your routes and middleware
-app.get('/example', (req, res) => {
-  throw new ValidationError('Invalid input');
+app.get('/users/:id', (req, res) => {
+  throw new NotFoundError('User not found');
 });
 
-// Add the error handler as the last middleware
-app.use(createErrorHandler());
+app.use(createExpressErrorHandler());
 ```
 
-## ⚙️ Configuration Options
+## Real-World Examples
 
-The error handler can be customized with various options:
-
-```typescript
-interface ErrorHandlerOptions {
-  // Include stack traces in error responses (defaults to true in development)
-  includeStackTrace?: boolean;
-  
-  // Custom error logging function
-  logError?: (error: Error) => void;
-  
-  // Transform errors before sending response
-  transformError?: (error: Error) => Partial<BaseError>;
-}
-
-// Example usage with options
-app.use(createErrorHandler({
-  includeStackTrace: process.env.NODE_ENV !== 'production',
-  logError: (error) => console.error('[TrapX]', error),
-}));
-```
-
-## 📝 Built-in Error Types
-
-TrapX comes with commonly used HTTP error types:
-
-| Error Class | HTTP Status | Code |
-|------------|-------------|------|
-| ValidationError | 400 | VALIDATION_ERROR |
-| UnauthorizedError | 401 | UNAUTHORIZED |
-| ForbiddenError | 403 | FORBIDDEN |
-| NotFoundError | 404 | NOT_FOUND |
-| InternalServerError | 500 | INTERNAL_SERVER_ERROR |
-
-## 🛠️ Creating Custom Errors
-
-Extend the `BaseError` class to create your own error types:
+### 1. API Input Validation
 
 ```typescript
-import { BaseError } from 'trapx';
+import { ValidationError } from 'trapx';
+import { z } from 'zod';
 
-class CustomError extends BaseError {
-  constructor(message: string) {
-    super(message, 422, {
-      code: 'CUSTOM_ERROR',
-      details: { custom: 'data' },
-      isOperational: true
+const userSchema = z.object({
+  email: z.string().email(),
+  age: z.number().min(18)
+});
+
+app.post('/users', (req, res) => {
+  const result = userSchema.safeParse(req.body);
+  if (!result.success) {
+    throw new ValidationError('Invalid user data', {
+      details: result.error.flatten()
     });
   }
-}
+  // Process valid user...
+});
 ```
 
-## 📤 Response Format
+### 2. Authentication & Authorization
 
-All errors are transformed into a consistent response format:
+```typescript
+import { UnauthorizedError, ForbiddenError } from 'trapx';
 
-```json
-{
-  "success": false,
-  "error": {
-    "message": "Error message",
-    "code": "ERROR_CODE",
-    "details": {},
-    "stack": "Error stack trace (development only)"
+const authMiddleware = (req, res, next) => {
+  const token = req.headers.authorization;
+  
+  if (!token) {
+    throw new UnauthorizedError('No token provided');
+  }
+  
+  try {
+    const user = verifyToken(token);
+    req.user = user;
+    next();
+  } catch (error) {
+    throw new UnauthorizedError('Invalid token');
+  }
+};
+
+const adminOnly = (req, res, next) => {
+  if (req.user.role !== 'admin') {
+    throw new ForbiddenError('Admin access required', {
+      details: {
+        requiredRole: 'admin',
+        userRole: req.user.role
+      }
+    });
+  }
+  next();
+};
+
+app.post('/admin/settings', authMiddleware, adminOnly, (req, res) => {
+  // Update settings...
+});
+```
+
+### 3. Database Operations with Error Handling
+
+```typescript
+import { NotFoundError, InternalServerError } from 'trapx';
+
+class UserService {
+  async getUserById(id: string) {
+    try {
+      const user = await db.users.findUnique({ where: { id } });
+      
+      if (!user) {
+        throw new NotFoundError('User not found', {
+          details: { userId: id }
+        });
+      }
+      
+      return user;
+    } catch (error) {
+      if (error instanceof NotFoundError) throw error;
+      
+      throw new InternalServerError('Database error', {
+        details: { operation: 'getUserById' },
+        cause: error
+      });
+    }
   }
 }
 ```
 
-## 🤝 Contributing
+### 4. Custom Error Transformation
 
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+```typescript
+import { createExpressErrorHandler, BaseError } from 'trapx';
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+const errorHandler = createExpressErrorHandler({
+  // Include stack traces in development
+  includeStackTrace: process.env.NODE_ENV === 'development',
+  
+  // Custom error logging
+  logError: (error) => {
+    console.error('[App Error]:', {
+      message: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
+  },
+  
+  // Transform unknown errors
+  transformError: (error) => {
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return new ValidationError('Resource already exists', {
+        code: 'DUPLICATE_ENTRY',
+        details: error.fields
+      });
+    }
+    return new InternalServerError('Something went wrong');
+  }
+});
+```
 
-## 📜 License
+### 5. API Rate Limiting Example
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+```typescript
+import { ValidationError } from 'trapx';
+import rateLimit from 'express-rate-limit';
 
-## 🙏 Support
+const rateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100,
+  handler: () => {
+    throw new ValidationError('Too many requests', {
+      code: 'RATE_LIMIT_EXCEEDED',
+      details: {
+        windowMs: '15m',
+        maxRequests: 100,
+        tryAgainIn: '15 minutes'
+      }
+    });
+  }
+});
 
-If you find this project helpful, please give it a ⭐️ on GitHub! 
+app.use('/api', rateLimiter);
+```
+
+### 6. File Upload Validation
+
+```typescript
+import { ValidationError } from 'trapx';
+import multer from 'multer';
+
+const upload = multer({
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB
+  }
+});
+
+app.post('/upload', upload.single('file'), (req, res) => {
+  if (!req.file) {
+    throw new ValidationError('No file uploaded', {
+      code: 'FILE_REQUIRED'
+    });
+  }
+
+  if (!['image/jpeg', 'image/png'].includes(req.file.mimetype)) {
+    throw new ValidationError('Invalid file type', {
+      code: 'INVALID_FILE_TYPE',
+      details: {
+        allowedTypes: ['image/jpeg', 'image/png'],
+        receivedType: req.file.mimetype
+      }
+    });
+  }
+
+  // Process file...
+});
+```
+
+## Advanced Configuration
+
+### Custom Error Response Format
+
+```typescript
+import { createExpressErrorHandler, BaseError } from 'trapx';
+
+interface CustomError extends BaseError {
+  timestamp?: string;
+  requestId?: string;
+}
+
+const errorHandler = createExpressErrorHandler({
+  transformError: (error) => {
+    const customError: CustomError = new BaseError(error.message);
+    customError.timestamp = new Date().toISOString();
+    customError.requestId = generateRequestId();
+    return customError;
+  }
+});
+```
+
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+## License
+
+MIT 
