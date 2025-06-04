@@ -1,12 +1,5 @@
-export { createErrorHandler } from './middleware/errorHandler';
-export { BaseError } from './errors/BaseError';
-export {
-  ValidationError,
-  NotFoundError,
-  UnauthorizedError,
-  ForbiddenError,
-  InternalServerError,
-} from './errors/CommonErrors';
-
-export type { ErrorMetadata } from './errors/BaseError';
-export type { ErrorHandlerOptions } from './middleware/errorHandler'; 
+export * from './core/errors';
+export * from './core/types/AdapterTypes';
+export type { ErrorResponse, BaseErrorParams, ErrorMetadata } from './core/types/ErrorTypes';
+import { createExpressErrorHandler } from './adapters/express';
+export { createExpressErrorHandler, createExpressErrorHandler as createErrorHandler }; 

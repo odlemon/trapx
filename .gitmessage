@@ -1,0 +1,24 @@
+test: add comprehensive test suite for error handling
+
+- Add core error tests (__tests__/core/errors.test.ts)
+  - Test all error types (Base, Validation, NotFound, etc.)
+  - Verify error inheritance and stack traces
+  - Test custom metadata handling
+  - Validate default values and properties
+
+- Add Express adapter tests (__tests__/adapters/express.test.ts)
+  - Test middleware configuration
+  - Verify error transformation
+  - Test development/production stack traces
+  - Test custom error logging
+  - Validate response formatting
+
+Coverage includes:
+✓ Error type instantiation
+✓ Custom metadata handling
+✓ Error inheritance chain
+✓ Stack trace preservation
+✓ Express middleware integration
+✓ Environment-aware error formatting
+
+Closes #[issue-number] 
