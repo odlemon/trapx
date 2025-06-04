@@ -7,24 +7,28 @@ export function createExpressErrorHandler(options: ErrorHandlerOptions = {}): Er
   const {
     includeStackTrace = process.env.NODE_ENV === 'development',
     logError = console.error,
-    transformError,
   } = options;
 
   return (error: Error, _req: Request, res: Response, _next: NextFunction): void => {
     logError(error);
 
-    const processedError = error instanceof BaseError 
-      ? error 
-      : transformError?.(error) || new BaseError({
-          message: 'Internal Server Error',
-          statusCode: 500,
-          metadata: {
-            code: 'INTERNAL_SERVER_ERROR',
-            isOperational: false
-          }
-        });
+    let processedError: BaseError;
+    if (error instanceof BaseError) {
+      processedError = error;
+    } else if (options.transformError) {
+      processedError = options.transformError(error) as BaseError;
+    } else {
+      processedError = new BaseError({
+        message: 'Internal Server Error',
+        statusCode: 500,
+        metadata: {
+          code: 'INTERNAL_SERVER_ERROR',
+          isOperational: false
+        }
+      });
+    }
 
     const response = formatError(processedError, includeStackTrace);
-    res.status(processedError.statusCode || 500).json(response);
+    res.status(processedError.statusCode).json(response);
   };
 } 

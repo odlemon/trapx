@@ -1,4 +1,4 @@
-import { ErrorMetadata, BaseErrorParams } from '../types/ErrorTypes';
+import { BaseErrorParams } from '../types/ErrorTypes';
 
 export class BaseError extends Error {
   readonly statusCode: number;
