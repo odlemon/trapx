@@ -1,6 +1,6 @@
 {
   "name": "trapx",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A plug-and-play middleware for standardized error handling in TypeScript-based Express.js applications",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -61,4 +61,4 @@
   "engines": {
     "node": ">=14.0.0"
   }
-} 
+}
