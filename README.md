@@ -5,7 +5,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
-A plug-and-play middleware for standardized error handling in TypeScript-based Express.js applications. TrapX simplifies error management, improves consistency across APIs, and enhances developer productivity by reducing boilerplate.
+A plug and play middleware for standardized error handling in TypeScript based Express.js applications. TrapX simplifies error management, improves consistency across APIs, and enhances developer productivity by reducing boilerplate.
 
 ## 🌟 Features
 
@@ -15,7 +15,6 @@ A plug-and-play middleware for standardized error handling in TypeScript-based E
 - 🚦 **Environment-Aware**: Automatic stack trace handling based on environment
 - 📦 **Pre-built Error Types**: Common HTTP error types included out of the box
 - 🔄 **Extensible**: Easy to create custom error types for your specific needs
-- 🪶 **Lightweight**: Zero external dependencies
 - 📝 **Well Documented**: Comprehensive documentation and examples
 
 ## 📦 Installation
