@@ -14,7 +14,7 @@ export function createErrorHandler(options: ErrorHandlerOptions = {}): ErrorRequ
     transformError,
   } = options;
 
-  return (error: Error, req: Request, res: Response, next: NextFunction): void => {
+  return (error: Error, req: Request, res: Response, _next: NextFunction): void => {
     logError(error);
 
     let processedError: Partial<BaseError>;
