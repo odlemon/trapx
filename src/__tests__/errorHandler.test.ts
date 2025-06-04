@@ -22,7 +22,7 @@ describe('Error Handler Middleware', () => {
       json: jest.fn(),
     };
     nextFunction = jest.fn();
-    mockLogger = jest.fn(); // Silent logger for cleaner test output
+    mockLogger = jest.fn(); 
   });
 
   describe('Common Error Types', () => {

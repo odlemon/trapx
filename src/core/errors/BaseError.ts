@@ -17,7 +17,6 @@ export class BaseError extends Error {
     this.details = metadata.details || {};
     this.isOperational = metadata.isOperational ?? true;
 
-    // Maintains proper stack trace for where our error was thrown
     Error.captureStackTrace(this, this.constructor);
   }
 
