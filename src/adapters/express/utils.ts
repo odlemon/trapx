@@ -7,7 +7,7 @@ export function formatError(error: BaseError, includeStack: boolean): ErrorRespo
     error: {
       message: error.message,
       code: error.code,
-      ...(error.details && { details: error.details }),
+      details: error.details || {},
       ...(includeStack && { stack: error.stack })
     }
   };

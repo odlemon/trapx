@@ -1,96 +1,111 @@
 import { BaseErrorParams } from '../types/ErrorTypes';
 
 export class BaseError extends Error {
-  readonly statusCode: number;
-  readonly code: string;
-  readonly details: Record<string, unknown>;
-  readonly isOperational: boolean;
-  readonly cause?: Error;
+  readonly statusCode!: number;
+  readonly code!: string;
+  readonly details!: Record<string, unknown>;
+  readonly isOperational!: boolean;
+  cause?: Error;
   private readonly originalStack?: string;
 
   constructor(params: BaseErrorParams) {
-    super(params.message);
+    super(params.message || '');
+    
+    Object.setPrototypeOf(this, new.target.prototype);
     
     this.name = this.constructor.name;
-    this.statusCode = params.statusCode;
     
-    const metadata = params.metadata || {};
-    this.code = metadata.code || 'INTERNAL_SERVER_ERROR';
-    this.details = metadata.details || {};
-    this.isOperational = metadata.isOperational ?? true;
-    this.cause = metadata.cause;
+    Object.defineProperties(this, {
+      statusCode: {
+        value: params.statusCode,
+        writable: false,
+        enumerable: true,
+        configurable: false
+      },
+      code: {
+        value: params.metadata?.code || this.constructor.name.toUpperCase(),
+        writable: false,
+        enumerable: true,
+        configurable: false
+      },
+      details: {
+        value: params.metadata?.details || {},
+        writable: false,
+        enumerable: true,
+        configurable: false
+      },
+      isOperational: {
+        value: params.metadata?.isOperational ?? true,
+        writable: false,
+        enumerable: true,
+        configurable: false
+      }
+    });
 
-    Error.captureStackTrace(this, this.constructor);
+    if (params.metadata?.cause) {
+      Object.defineProperty(this, 'cause', {
+        value: params.metadata.cause,
+        writable: false,
+        enumerable: true,
+        configurable: false
+      });
+    }
+
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, this.constructor);
+    }
     this.originalStack = this.stack;
 
     if (this.cause instanceof Error) {
-      this.stack = this.buildStackTrace();
+      this.updateStackTrace();
     }
   }
 
-  private buildStackTrace(): string {
-    const stackParts: string[] = [this.originalStack || ''];
-    let currentCause = this.cause;
-    let depth = 0;
-    const maxDepth = 10; // Prevent infinite loops with circular references
+  private updateStackTrace() {
+    if (!this.cause) return;
 
-    while (currentCause instanceof Error && depth < maxDepth) {
-      stackParts.push(`\nCaused by: ${currentCause.stack || currentCause.message}`);
-      currentCause = (currentCause as BaseError).cause;
-      depth++;
-    }
+    const causeStack = this.cause.stack || this.cause.message;
+    if (!causeStack) return;
 
-    if (depth === maxDepth) {
-      stackParts.push('\nWarning: Maximum error chain depth reached');
-    }
-
-    return stackParts.join('');
+    this.stack = this.stack ? 
+      `${this.stack}\nCaused by: ${causeStack}` :
+      `${this.name}: ${this.message}\nCaused by: ${causeStack}`;
   }
 
-  /**
-   * Get the root cause of the error chain
-   */
   getRootCause(): Error {
     let current: Error = this;
-    let depth = 0;
-    const maxDepth = 10;
-
-    while ((current as BaseError).cause instanceof Error && depth < maxDepth) {
-      current = (current as BaseError).cause!;
-      depth++;
+    while ((current as any).cause instanceof Error) {
+      current = (current as any).cause;
     }
-
     return current;
   }
 
   getErrorChain(): Error[] {
     const chain: Error[] = [this];
     let current: Error = this;
-    let depth = 0;
-    const maxDepth = 10;
     
-    while ((current as BaseError).cause instanceof Error && depth < maxDepth) {
-      current = (current as BaseError).cause!;
+    const maxDepth = 10;
+    while ((current as any).cause instanceof Error && chain.length < maxDepth) {
+      current = (current as any).cause;
       chain.push(current);
-      depth++;
     }
     
     return chain;
   }
 
-  /**
-   * Get a cleaned stack trace without internal frames
-   */
   getCleanStack(): string {
-    const stack = this.stack || '';
-    return stack
+    if (!this.stack) {
+      return `${this.name}: ${this.message}`;
+    }
+    return this.stack
       .split('\n')
       .filter(line => !line.includes('node_modules'))
       .join('\n');
   }
 
-  toJSON() {
+  toJSON(): Record<string, unknown> {
     return {
+      __type: this.constructor.name,
       name: this.name,
       message: this.message,
       statusCode: this.statusCode,
@@ -99,10 +114,40 @@ export class BaseError extends Error {
       isOperational: this.isOperational,
       stack: this.getCleanStack(),
       cause: this.cause instanceof Error ? {
+        __type: this.cause.constructor.name,
         name: this.cause.name,
         message: this.cause.message,
         stack: this.cause.stack
       } : undefined
     };
+  }
+
+  static isBaseError(error: unknown): error is BaseError {
+    return error instanceof Error &&
+           error instanceof BaseError &&
+           'statusCode' in error &&
+           'code' in error &&
+           'details' in error &&
+           'isOperational' in error;
+  }
+
+  static fromJSON(data: Record<string, unknown>): BaseError {
+    const params: BaseErrorParams = {
+      message: String(data.message || ''),
+      statusCode: Number(data.statusCode || 500),
+      metadata: {
+        code: String(data.code || ''),
+        details: (data.details || {}) as Record<string, unknown>,
+        isOperational: data.isOperational !== undefined ? Boolean(data.isOperational) : true
+      }
+    };
+
+    const error = Reflect.construct(this, [params], this) as BaseError;
+
+    if (data.stack) {
+      error.stack = String(data.stack);
+    }
+
+    return error;
   }
 } 

@@ -10,7 +10,10 @@ import {
 describe('Core Errors', () => {
   describe('BaseError', () => {
     it('should create a base error with default values', () => {
-      const error = new BaseError('Test error', 400);
+      const error = new BaseError({
+        message: 'Test error',
+        statusCode: 400
+      });
       expect(error.message).toBe('Test error');
       expect(error.statusCode).toBe(400);
       expect(error.code).toBeDefined();
@@ -18,10 +21,14 @@ describe('Core Errors', () => {
     });
 
     it('should create a base error with custom metadata', () => {
-      const error = new BaseError('Test error', 400, {
-        code: 'CUSTOM_ERROR',
-        isOperational: false,
-        details: { field: 'test' }
+      const error = new BaseError({
+        message: 'Test error',
+        statusCode: 400,
+        metadata: {
+          code: 'CUSTOM_ERROR',
+          isOperational: false,
+          details: { field: 'test' }
+        }
       });
       expect(error.code).toBe('CUSTOM_ERROR');
       expect(error.isOperational).toBe(false);

@@ -1,9 +1,7 @@
 import { BaseError } from './BaseError';
 import { ValidationError, NotFoundError, UnauthorizedError, ForbiddenError, InternalServerError } from './CommonErrors';
 
-type ErrorConstructor = new (...args: any[]) => BaseError;
-
-const errorTypes: Record<string, ErrorConstructor> = {
+const errorConstructors = {
   ValidationError,
   NotFoundError,
   UnauthorizedError,
@@ -18,35 +16,75 @@ export function serializeError(error: Error): Record<string, unknown> {
   }
 
   return {
+    __type: 'Error',
     name: error.name,
     message: error.message,
     stack: error.stack,
     code: 'UNKNOWN_ERROR',
     statusCode: 500,
-    isOperational: false
+    isOperational: false,
+    details: {}
   };
 }
 
-export function deserializeError(data: Record<string, unknown>): Error {
-  const ErrorClass = errorTypes[data.name as string] || BaseError;
-  
-  if (ErrorClass === BaseError) {
-    return new BaseError({
-      message: data.message as string,
-      statusCode: data.statusCode as number,
-      metadata: {
-        code: data.code as string,
-        details: data.details as Record<string, unknown>,
-        isOperational: data.isOperational as boolean
-      }
+function createErrorInstance(data: Record<string, unknown>): Error {
+  const errorType = (data.__type || data.name) as string;
+  const ErrorClass = errorConstructors[errorType as keyof typeof errorConstructors];
+
+  const code = typeof data.code === 'string' ? data.code : undefined;
+  const details = (data.details || {}) as Record<string, unknown>;
+  const isOperational = data.isOperational !== undefined ? Boolean(data.isOperational) : true;
+  const statusCode = Number(data.statusCode || 500);
+  const message = String(data.message || '');
+
+  if (ErrorClass && ErrorClass.prototype instanceof BaseError) {
+    return ErrorClass.fromJSON({
+      ...data,
+      code,
+      details,
+      isOperational,
+      statusCode,
+      message
     });
   }
 
-  return new ErrorClass(data.message as string, {
-    code: data.code as string,
-    details: data.details as Record<string, unknown>,
-    isOperational: data.isOperational as boolean
-  });
+  if (code && code !== 'UNKNOWN_ERROR') {
+    const params = {
+      message,
+      statusCode,
+      metadata: { code, details, isOperational }
+    };
+    const error = Reflect.construct(BaseError, [params], BaseError) as BaseError;
+    if (data.stack) error.stack = String(data.stack);
+    return error;
+  }
+
+  const error = new Error(message);
+  error.name = String(data.name || 'Error');
+  if (data.stack) {
+    error.stack = String(data.stack);
+  }
+  return error;
+}
+
+export function deserializeError(data: Record<string, unknown>): Error {
+  const error = createErrorInstance(data);
+
+  if (data.cause && typeof data.cause === 'object') {
+    const cause = deserializeError(data.cause as Record<string, unknown>);
+    Object.defineProperty(error, 'cause', {
+      value: cause,
+      writable: false,
+      enumerable: true,
+      configurable: false
+    });
+
+    if (error instanceof BaseError && cause.stack) {
+      error.stack = `${error.stack}\nCaused by: ${cause.stack}`;
+    }
+  }
+
+  return error;
 }
 
 export function reconstructErrorChain(serializedErrors: Record<string, unknown>[]): Error {
@@ -54,11 +92,25 @@ export function reconstructErrorChain(serializedErrors: Record<string, unknown>[
     return new Error('Empty error chain');
   }
 
-  const errors = serializedErrors.map(data => deserializeError(data));
+  const maxDepth = 10;
+  const errors = serializedErrors
+    .slice(0, maxDepth)
+    .map(data => createErrorInstance(data));
   
   for (let i = 0; i < errors.length - 1; i++) {
-    (errors[i] as BaseError).cause = errors[i + 1];
+    if (errors[i] instanceof BaseError) {
+      Object.defineProperty(errors[i], 'cause', {
+        value: errors[i + 1],
+        writable: false,
+        enumerable: true,
+        configurable: false
+      });
+
+      if (errors[i].stack && errors[i + 1].stack) {
+        errors[i].stack = `${errors[i].stack}\nCaused by: ${errors[i + 1].stack}`;
+      }
+    }
   }
 
   return errors[0];
-} 
+}

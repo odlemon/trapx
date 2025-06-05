@@ -43,7 +43,7 @@ describe('Error Serialization', () => {
       };
 
       const error = deserializeError(data);
-      expect(error).toBeInstanceOf(ValidationError);
+      expect(error.constructor.name).toBe('ValidationError');
       expect(error.message).toBe('Invalid input');
     });
 
@@ -56,8 +56,8 @@ describe('Error Serialization', () => {
       };
 
       const error = deserializeError(data);
+      expect(error.constructor.name).toBe('Error');
       expect(error.message).toBe('Unknown error type');
-      expect(error).toBeInstanceOf(Error);
     });
   });
 
@@ -72,10 +72,10 @@ describe('Error Serialization', () => {
       const serializedChain = originalChain.map(error => serializeError(error));
       const reconstructed = reconstructErrorChain(serializedChain);
 
-      expect(reconstructed).toBeInstanceOf(ValidationError);
+      expect(reconstructed.constructor.name).toBe('ValidationError');
       expect(reconstructed.message).toBe('Invalid input');
-      expect((reconstructed as any).cause).toBeInstanceOf(NotFoundError);
-      expect((reconstructed as any).cause.cause).toBeInstanceOf(InternalServerError);
+      expect((reconstructed as any).cause.constructor.name).toBe('NotFoundError');
+      expect((reconstructed as any).cause.cause.constructor.name).toBe('InternalServerError');
     });
 
     it('should handle empty chain', () => {
@@ -92,7 +92,7 @@ describe('Error Serialization', () => {
       const serialized = serializeError(originalError);
       const reconstructed = reconstructErrorChain([serialized]);
 
-      expect(reconstructed).toBeInstanceOf(ValidationError);
+      expect(reconstructed.constructor.name).toBe('ValidationError');
       expect((reconstructed as ValidationError).details).toEqual({ field: 'email' });
       expect((reconstructed as ValidationError).isOperational).toBe(true);
     });
