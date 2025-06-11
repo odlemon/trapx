@@ -1,10 +1,12 @@
 import { BaseErrorParams } from '../types/ErrorTypes';
+import { RequestContext } from '../types/ErrorTypes';
 
 export class BaseError extends Error {
   readonly statusCode!: number;
   readonly code!: string;
   readonly details!: Record<string, unknown>;
   readonly isOperational!: boolean;
+  readonly requestContext?: RequestContext;
   cause?: Error;
   private readonly originalStack?: string;
 
@@ -36,6 +38,12 @@ export class BaseError extends Error {
       },
       isOperational: {
         value: params.metadata?.isOperational ?? true,
+        writable: false,
+        enumerable: true,
+        configurable: false
+      },
+      requestContext: {
+        value: params.metadata?.requestContext,
         writable: false,
         enumerable: true,
         configurable: false
@@ -112,6 +120,7 @@ export class BaseError extends Error {
       code: this.code,
       details: this.details,
       isOperational: this.isOperational,
+      requestContext: this.requestContext,
       stack: this.getCleanStack(),
       cause: this.cause instanceof Error ? {
         __type: this.cause.constructor.name,

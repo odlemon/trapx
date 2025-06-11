@@ -31,4 +31,16 @@ export interface ErrorHandlerOptions {
   includeStackTrace?: boolean;
   logError?: (error: Error) => void;
   transformError?: (error: Error) => Partial<BaseErrorParams>;
+}
+
+export interface RequestContext {
+  path: string;
+  method: string;
+  query: Record<string, unknown>;
+  params: Record<string, unknown>;
+  headers: Record<string, string>;
+  userId?: string;
+  userRole?: string;
+  requestId?: string;
+  timestamp: number;
 } 
